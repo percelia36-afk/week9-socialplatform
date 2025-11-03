@@ -217,6 +217,8 @@ CREATE TABLE posts (
 - **URL Validation**: Comprehensive client and server-side video URL validation
 - **Responsive Embedding**: 16:9 aspect ratio maintenance for embedded videos
 
+> **Note**: Video playback functionality is currently experiencing issues and does not work as intended. While the video player interface is implemented with comprehensive features, actual video playback may not function properly.
+
 ### Development & Debugging Features
 
 - **Debug Information**: Real-time debug bars showing application state and data loading
