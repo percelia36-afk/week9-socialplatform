@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Video fullscreen support */
+video {
+  max-width: 100%;
+  height: auto;
+  /* Ensure video can buffer and play completely */
+  display: block;
+  /* Optimize video rendering for smooth playback */
+  will-change: transform;
+  /* Force hardware acceleration for better performance */
+  transform: translate3d(0, 0, 0);
+  /* Fix video frame rendering issues */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Improve video quality */
+  image-rendering: optimizeQuality;
+  /* Prevent video flickering */
+  -webkit-filter: blur(0);
+  filter: blur(0);
+}
+
+/* Force video repainting during playback */
+video:not([paused]) {
+  max-height: none !important;
+  /* Ensure smooth frame updates */
+  image-rendering: auto;
+  -webkit-image-rendering: auto;
+  /* Force continuous GPU rendering */
+  will-change: transform, opacity;
+  /* Prevent frame freezing */
+  animation: videoRender 0.1s infinite;
+}
+
+/* Animation to force frame updates */
+@keyframes videoRender {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Optimize video loading and buffering */
+video[preload="auto"] {
+  /* Prioritize video processing */
+  -webkit-video-decode-mode: auto;
+  /* Force immediate rendering */
+  opacity: 1;
+}
+
+video:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  background: black;
+}
+
+video:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  background: black;
+}
+
+video:-moz-full-screen {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  background: black;
+}
+
+video:-ms-fullscreen {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;
+  background: black;
+}
+
+/* Ensure video controls are visible in fullscreen */
+video:fullscreen::-webkit-media-controls {
+  display: flex !important;
+}
+
+video:-webkit-full-screen::-webkit-media-controls {
+  display: flex !important;
+}
+
+/* Ensure video buffers properly */
+video {
+  /* Enable hardware acceleration for smooth playback */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  /* Prevent video from being interrupted */
+  -webkit-video-play-button: visible;
+  /* Optimize for continuous playback */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}

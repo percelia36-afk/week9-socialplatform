@@ -1,0 +1,634 @@
+"use client";
+
+import Image from "next/image";
+import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import Link from "next/link";
+
+interface UserProfile {
+  id: number;
+  clerk_id: string;
+  email: string;
+  username: string;
+  bio?: string;
+}
+
+interface Post {
+  id: number;
+  user_id: number;
+  title: string;
+  content: string;
+  video_url?: string;
+  video_description?: string;
+  created_at: string;
+  likes: number;
+}
+
+export default function ProfilePage() {
+  const { user, isLoaded } = useUser();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    username: "",
+    bio: "",
+  });
+  const [newPost, setNewPost] = useState({
+    title: "",
+    content: "",
+    video_url: "",
+    video_description: "",
+  });
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchProfile();
+      fetchPosts();
+    }
+  }, [isLoaded, user]);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await fetch("/api/profile");
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(data.profile);
+        setFormData({
+          username: data.profile?.username || "",
+          bio: data.profile?.bio || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPosts = async () => {
+    try {
+      const response = await fetch("/api/posts");
+      if (response.ok) {
+        const data = await response.json();
+        setPosts(data.posts || []);
+      }
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+    }
+  };
+
+  const createPost = async () => {
+    if (!newPost.title.trim() || !newPost.content.trim()) return;
+
+    setCreating(true);
+    try {
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPost),
+      });
+
+      if (response.ok) {
+        setNewPost({
+          title: "",
+          content: "",
+          video_url: "",
+          video_description: "",
+        });
+        fetchPosts(); // Refresh posts
+      } else {
+        alert("Failed to create post");
+      }
+    } catch (error) {
+      console.error("Error creating post:", error);
+      alert("Error creating post");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        await fetchProfile();
+        setEditing(false);
+        alert("Profile updated successfully!");
+      } else {
+        alert("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Error updating profile");
+    }
+  };
+
+  if (!isLoaded || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
+          <p className="mt-2 text-gray-600">
+            Please sign in to view your profile.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">
+                My Profile
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Link href="/" className="text-gray-600 hover:text-gray-900">
+                ← Back to Home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          {/* Profile Header */}
+          <div className="bg-gray-50 px-6 py-4 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center">
+                  {user.imageUrl ? (
+                    <Image
+                      src={user.imageUrl}
+                      alt="Profile"
+                      width={64}
+                      height={64}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold text-white">
+                      {user.firstName?.[0] ||
+                        user.emailAddresses[0].emailAddress[0].toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {profile?.username || user.emailAddresses[0].emailAddress}
+                  </h2>
+                  <p className="text-gray-600">
+                    {user.emailAddresses[0].emailAddress}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Link href="/posts">
+                  <Button variant="outline">View All Posts</Button>
+                </Link>
+                <Dialog open={editing} onOpenChange={setEditing}>
+                  <DialogTrigger asChild>
+                    <Button>Edit Profile</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Edit Profile</DialogTitle>
+                    </DialogHeader>
+                      Update your profile information here.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.username}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              username: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Bio
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.bio}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              bio: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Username
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            username: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bio
+                      </label>
+                      <textarea
+                        value={formData.bio}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            bio: e.target.value,
+                          }))
+                        }
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        placeholder="Tell us about yourself..."
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditing(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">Save Changes</Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Content */}
+          <div className="px-6 py-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Profile Information
+                </h3>
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">
+                      Full Name
+                    </dt>
+                    <dd className="text-sm text-gray-900">
+                      {profile?.username || "Not provided"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">
+                      Username
+                    </dt>
+                    <dd className="text-sm text-gray-900">
+                      {profile?.username || "Not set"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">Email</dt>
+                    <dd className="text-sm text-gray-900">
+                      {user.emailAddresses[0].emailAddress}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-medium text-gray-500">
+                      Member Since
+                    </dt>
+                    <dd className="text-sm text-gray-900">Unknown</dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Biography
+                </h3>
+                <p className="text-sm text-gray-700">
+                  {profile?.bio ||
+                    'No biography provided yet. Click "Edit Profile" to add one!'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Posts Section */}
+        <div className="mt-8 bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b flex justify-between items-center">
+            <h3 className="text-lg font-medium text-gray-900">My Posts</h3>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>Create New Post</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Post</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newPost.title}
+                      onChange={(e) =>
+                        setNewPost({ ...newPost, title: e.target.value })
+                      }
+                      placeholder="Enter post title..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Content
+                    </label>
+                    <textarea
+                      value={newPost.content}
+                      onChange={(e) =>
+                        setNewPost({ ...newPost, content: e.target.value })
+                      }
+                      placeholder="What's on your mind?"
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Video URL (optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={newPost.video_url}
+                      onChange={(e) =>
+                        setNewPost({ ...newPost, video_url: e.target.value })
+                      }
+                      placeholder="Enter video URL..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Video Description (optional)
+                    </label>
+                    <textarea
+                      value={newPost.video_description}
+                      onChange={(e) =>
+                        setNewPost({
+                          ...newPost,
+                          video_description: e.target.value,
+                        })
+                      }
+                      placeholder="Describe your video..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setNewPost({
+                          title: "",
+                          content: "",
+                          video_url: "",
+                          video_description: "",
+                        })
+                      }
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={createPost}
+                      disabled={
+                        creating ||
+                        !newPost.title.trim() ||
+                        !newPost.content.trim()
+                      }
+                    >
+                      {creating ? "Creating..." : "Create Post"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="px-6 py-6">
+            {posts.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">
+                  No posts yet. Start sharing your thoughts!
+                </p>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">Create Your First Post</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Post</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          value={newPost.title}
+                          onChange={(e) =>
+                            setNewPost({ ...newPost, title: e.target.value })
+                          }
+                          placeholder="Enter post title..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Content
+                        </label>
+                        <textarea
+                          value={newPost.content}
+                          onChange={(e) =>
+                            setNewPost({ ...newPost, content: e.target.value })
+                          }
+                          placeholder="What's on your mind?"
+                          rows={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Video URL (optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={newPost.video_url}
+                          onChange={(e) =>
+                            setNewPost({
+                              ...newPost,
+                              video_url: e.target.value,
+                            })
+                          }
+                          placeholder="Enter video URL..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Video Description (optional)
+                        </label>
+                        <textarea
+                          value={newPost.video_description}
+                          onChange={(e) =>
+                            setNewPost({
+                              ...newPost,
+                              video_description: e.target.value,
+                            })
+                          }
+                          placeholder="Describe your video..."
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            setNewPost({
+                              title: "",
+                              content: "",
+                              video_url: "",
+                              video_description: "",
+                            })
+                          }
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={createPost}
+                          disabled={
+                            creating ||
+                            !newPost.title.trim() ||
+                            !newPost.content.trim()
+                          }
+                        >
+                          {creating ? "Creating..." : "Create Post"}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {posts.map((post) => (
+                  <div
+                    key={post.id}
+                    className="bg-gray-50 rounded-lg border p-6"
+                  >
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-gray-700 mb-4">{post.content}</p>
+
+                    {post.video_url && (
+                      <div className="mb-4">
+                        <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                          <a
+                            href={post.video_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            🎥 Watch Video
+                          </a>
+                        </div>
+                        {post.video_description && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            {post.video_description}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-sm text-gray-500">
+                      <span>
+                        {new Date(post.created_at).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span>❤️ {post.likes}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
